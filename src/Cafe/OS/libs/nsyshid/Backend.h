@@ -23,6 +23,34 @@ namespace nsyshid
 		/* +0x12 */ uint16be maxPacketSizeTX;
 	} HID_t;
 
+	struct TransferCommand
+	{
+		bool isFake;
+		sint32 expectedTimeMillis;
+	};
+
+	struct ReadMessage : TransferCommand
+	{
+		uint8* data;
+		sint32 length;
+		sint32 bytesRead;
+	};
+
+	struct WriteMessage : TransferCommand
+	{
+		uint8* data;
+		sint32 length;
+		sint32 bytesWritten;
+	};
+
+	struct ReportMessage : TransferCommand
+	{
+		uint8* reportData;
+		sint32 length;
+		uint8* originalData;
+		sint32 originalLength;
+	};
+
 	static_assert(offsetof(HID_t, vendorId) == 0x8, "");
 	static_assert(offsetof(HID_t, productId) == 0xA, "");
 	static_assert(offsetof(HID_t, ifIndex) == 0xC, "");
@@ -69,7 +97,7 @@ namespace nsyshid
 			ErrorTimeout,
 		};
 
-		virtual ReadResult Read(uint8* data, sint32 length, sint32& bytesRead) = 0;
+		virtual ReadResult Read(ReadMessage* message) = 0;
 
 		enum class WriteResult
 		{
@@ -78,7 +106,7 @@ namespace nsyshid
 			ErrorTimeout,
 		};
 
-		virtual WriteResult Write(uint8* data, sint32 length, sint32& bytesWritten) = 0;
+		virtual WriteResult Write(WriteMessage* message) = 0;
 
 		virtual bool GetDescriptor(uint8 descType,
 								   uint8 descIndex,
@@ -88,7 +116,7 @@ namespace nsyshid
 
 		virtual bool SetProtocol(uint32 ifIndef, uint32 protocol) = 0;
 
-		virtual bool SetReport(uint8* reportData, sint32 length, uint8* originalData, sint32 originalLength) = 0;
+		virtual bool SetReport(ReportMessage* message) = 0;
 	};
 
 	class Backend {
@@ -112,6 +140,11 @@ namespace nsyshid
 		bool IsBackendAttached();
 
 		virtual bool IsInitialisedOk() = 0;
+
+		// Found Devices
+		bool m_foundSkylander = false;
+		bool m_foundInfinity = false;
+		bool m_foundDimensions = false;
 
 	  protected:
 		// try to attach a device - only works if this backend is attached

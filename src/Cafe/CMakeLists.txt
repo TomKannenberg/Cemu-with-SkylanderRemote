@@ -442,6 +442,8 @@ add_library(CemuCafe
   OS/libs/nsyshid/BackendLibusb.h
   OS/libs/nsyshid/BackendWindowsHID.cpp
   OS/libs/nsyshid/BackendWindowsHID.h
+  OS/libs/nsyshid/Skylander.cpp
+  OS/libs/nsyshid/Skylander.h
   OS/libs/nsyskbd/nsyskbd.cpp
   OS/libs/nsyskbd/nsyskbd.h
   OS/libs/nsysnet/nsysnet.cpp
