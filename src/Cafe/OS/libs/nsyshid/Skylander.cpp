@@ -211,9 +211,11 @@ namespace nsyshid
 			std::filesystem::path coresPath = exePath.parent_path() / "Skylanders" / "Cores";
 			std::filesystem::path topsPath = exePath.parent_path() / "Skylanders" / "Swappers" / "Tops";
 			std::filesystem::path botsPath = exePath.parent_path() / "Skylanders" / "Swappers" / "Bottoms";
+			std::filesystem::path trapsPath = exePath.parent_path() / "Skylanders" / "Traps";
 			coresPathStr = coresPath.string() + "/";
 			topsPathStr = topsPath.string() + "/";
 			botsPathStr = botsPath.string() + "/";
+			trapsPathStr = trapsPath.string() + "/";
 
 			std::thread tcpthread(&SkylanderUSB::tcp_loop, this);
 			tcpthread.detach();
@@ -332,7 +334,12 @@ namespace nsyshid
 							skylanderToSend = &botsPathStr;
 							std::cout << "BottomLander" << std::endl;
 							break;
+						case 3:
+							skylanderToSend = &trapsPathStr;
+							std::cout << "Trap" << std::endl;
+							break;
 						}
+
 
 						--slot;
 					}

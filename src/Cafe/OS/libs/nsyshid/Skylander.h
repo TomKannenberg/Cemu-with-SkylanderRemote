@@ -80,6 +80,7 @@ namespace nsyshid
 		std::string coresPathStr;
 		std::string topsPathStr;
 		std::string botsPathStr;
+		std::string trapsPathStr;
 		std::queue<std::array<uint8, 64>> m_queries;
 		bool m_activated = true;
 		uint8 m_interrupt_counter = 0;
