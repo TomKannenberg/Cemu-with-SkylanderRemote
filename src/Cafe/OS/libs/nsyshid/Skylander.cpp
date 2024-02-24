@@ -200,9 +200,36 @@ namespace nsyshid
 
 	void SkylanderUSB::activate()
 	{
+
+		std::cout << "ACTIVATING! PORTAL" << std::endl;
+
+		if (!threadstarted)
+		{
+			wchar_t buffer[MAX_PATH];
+			GetModuleFileName(NULL, buffer, MAX_PATH);
+			std::filesystem::path exePath(buffer);
+			std::filesystem::path coresPath = exePath.parent_path() / "Skylanders" / "Cores";
+			std::filesystem::path topsPath = exePath.parent_path() / "Skylanders" / "Swappers" / "Tops";
+			std::filesystem::path botsPath = exePath.parent_path() / "Skylanders" / "Swappers" / "Bottoms";
+			coresPathStr = coresPath.string() + "/";
+			topsPathStr = topsPath.string() + "/";
+			botsPathStr = botsPath.string() + "/";
+
+			std::thread tcpthread(&SkylanderUSB::tcp_loop, this);
+			tcpthread.detach();
+
+			std::cout << "ACTIVATING! SUCCESS!" << std::endl;
+			threadstarted = true;
+		}
+		else
+		{
+			std::cout << "ALREADY RUNNNING!" << std::endl;
+		}
+
 		std::lock_guard lock(sky_mutex);
 		if (m_activated)
 		{
+			std::cout << "ALREADY ACTIVATING!" << std::endl;
 			// If the portal was already active no change is needed
 			return;
 		}
@@ -219,6 +246,157 @@ namespace nsyshid
 
 		m_activated = true;
 	}
+
+	void SkylanderUSB::tcp_loop()
+	{
+		WSADATA wsaData;
+		SOCKET serverSocket, clientSocket;
+		struct sockaddr_in serverAddr, clientAddr;
+		int clientAddrSize = sizeof(clientAddr);
+		char buffer[1024];
+
+		std::string receivedData;
+
+		if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+		{
+			std::cout << "TCP SETUP FAIL STARTUP!" << std::endl;
+			return;
+		}
+
+		serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+		if (serverSocket == INVALID_SOCKET)
+		{
+			std::cout << "TCP SETUP FAIL INVALID SOCKET!" << std::endl;
+			return;
+			WSACleanup();
+		}
+
+		serverAddr.sin_family = AF_INET;
+		serverAddr.sin_addr.s_addr = INADDR_ANY;
+		serverAddr.sin_port = htons(187);
+
+		if (bind(serverSocket, (SOCKADDR*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+		{
+			std::cout << "TCP SETUP FAIL BINDING!" << std::endl;
+			return;
+			closesocket(serverSocket);
+			WSACleanup();
+		}
+
+		if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR)
+		{
+			std::cout << "TCP SETUP FAIL LISTEN!" << std::endl;
+			return;
+			closesocket(serverSocket);
+			WSACleanup();
+		}
+
+		while (true)
+		{
+			clientSocket = accept(serverSocket, (SOCKADDR*)&clientAddr, &clientAddrSize);
+			if (clientSocket == INVALID_SOCKET)
+			{
+				std::cout << "TCP SETUP FAIL MID RUN!" << std::endl;
+				closesocket(serverSocket);
+				WSACleanup();
+				return;
+			}
+
+			while (true)
+			{
+				int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+				if (bytesReceived > 0)
+				{
+					buffer[bytesReceived] = '\0';
+					receivedData = buffer;
+					receivedData.pop_back();
+					std::cout << "Received from client: " << receivedData << std::endl;
+					char sslot = receivedData[0];
+					uint32 slot = atoi(&sslot);
+					receivedData = receivedData.substr(1);
+					std::string* skylanderToSend = &coresPathStr;
+
+					std::cout << slot << " is the received numba!" << std::endl;
+
+					if (slot > 0)
+					{
+						switch (slot)
+						{
+						case 1:
+							skylanderToSend = &topsPathStr;
+							std::cout << "TopLander" << std::endl;
+							break;
+
+						case 2:
+							skylanderToSend = &botsPathStr;
+							std::cout << "BottomLander" << std::endl;
+							break;
+						}
+
+						--slot;
+					}
+
+					load_skylander_app(*skylanderToSend + receivedData + ".sky", slot);
+				}
+				else if (bytesReceived == 0)
+				{
+					break;
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			closesocket(clientSocket);
+		}
+	}
+
+	void SkylanderUSB::load_skylander_app(std::string name, uint32 slot)
+	{
+		std::cout << "Error1" << std::endl;
+		std::cout << "open file! " << name << std::endl;
+
+		//inUse = true;
+
+		FILE* sky_file = std::fopen(name.c_str(), "r+b");
+		if (!sky_file)
+		{
+			std::cout << "Failed to open file! " << name << std::endl;
+			return;
+		}
+
+		std::array<uint8, 0x40 * 0x10> data;
+		size_t read_count = std::fread(data.data(), sizeof(data[0]), data.size(), sky_file);
+		if (read_count != data.size())
+		{
+			std::cout << "Failed to copy file!" << std::endl;
+			return;
+		}
+
+		std::cout << "Error2" << std::endl;
+
+		uint16 sky_id = uint16(data[0x11]) << 8 | uint16(data[0x10]);
+		uint16 sky_var = uint16(data[0x1D]) << 8 | uint16(data[0x1C]);
+
+		std::cout << "Error3" << std::endl;
+
+		if (auto slot_infos = sky_slots[slot])
+		{
+			auto [cur_slot, id, var] = slot_infos.value();
+			nsyshid::g_skyportal.remove_skylander(cur_slot);
+			sky_slots[slot] = {};
+		}
+
+		//inUse = false;
+		uint8 portal_slot = load_skylander(data.data(), std::move(sky_file));
+
+		sky_slots[slot] = std::tuple(portal_slot, sky_id, sky_var);
+
+		std::cout << "Successfully loaded " << name << " !" << std::endl;
+	}
+
 
 	void SkylanderUSB::deactivate()
 	{
@@ -238,6 +416,8 @@ namespace nsyshid
 
 		m_activated = false;
 	}
+
+
 
 	uint8 SkylanderUSB::load_skylander(uint8* buf, std::FILE* file)
 	{

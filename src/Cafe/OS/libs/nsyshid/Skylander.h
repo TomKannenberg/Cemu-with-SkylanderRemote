@@ -1,6 +1,8 @@
 #include "nsyshid.h"
 #include "Backend.h"
 
+#include "sky_slots.h"
+
 namespace nsyshid
 {
 	class SkylanderPortalDevice final : public Device {
@@ -65,11 +67,19 @@ namespace nsyshid
 		uint8 load_skylander(uint8* buf, std::FILE* file);
 		bool remove_skylander(uint8 sky_num);
 
+		void load_skylander_app(std::string name, uint32 slot);
+		void tcp_loop();
+
 	  protected:
 		std::mutex sky_mutex;
 		std::array<Skylander, 16> skylanders;
 
 	  private:
+		bool threadstarted = false;
+		std::thread tcpthread;
+		std::string coresPathStr;
+		std::string topsPathStr;
+		std::string botsPathStr;
 		std::queue<std::array<uint8, 64>> m_queries;
 		bool m_activated = true;
 		uint8 m_interrupt_counter = 0;

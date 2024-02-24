@@ -238,6 +238,9 @@ void ToolShaderCacheMerger();
 // entrypoint for release builds
 int wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ int nShowCmd)
 {
+
+	AllocConsole();
+	freopen("CONOUT$", "w", stdout);
 	if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE)))
 		cemuLog_log(LogType::Force, "CoInitializeEx() failed");
 	SDL_SetMainReady();
